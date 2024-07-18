@@ -1,5 +1,5 @@
 // For more information, see https://crawlee.dev/
-import { Configuration, PlaywrightCrawler, downloadListOfUrls, utils, KeyValueStore } from "crawlee";
+import { Configuration, PlaywrightCrawler, downloadListOfUrls } from "crawlee";
 import { readFile, writeFile } from "fs/promises";
 import { glob } from "glob";
 import { Config, configSchema } from "./config.js";
