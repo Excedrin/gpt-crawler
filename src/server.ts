@@ -37,6 +37,24 @@ app.post("/crawl", async (req, res) => {
   }
 });
 
+// Define a POST route to accept config and run the crawler
+app.post("/screenshot", async (req, res) => {
+  const config: Config = req.body;
+  try {
+    const validatedConfig = configSchema.parse(config);
+    const crawler = new GPTCrawlerCore(validatedConfig);
+    await crawler.screenshot();
+    const outputFileName = validatedConfig.outputFileName;
+    const outputFileContent = await readFile(outputFileName);
+    res.contentType('image/jpeg');
+    return res.send(outputFileContent);
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "Error occurred during crawling", error });
+  }
+});
+
 app.listen(port, hostname, () => {
   console.log(`API server listening at http://${hostname}:${port}`);
 });

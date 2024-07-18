@@ -1,5 +1,5 @@
 // For more information, see https://crawlee.dev/
-import { Configuration, PlaywrightCrawler, downloadListOfUrls } from "crawlee";
+import { Configuration, PlaywrightCrawler, downloadListOfUrls, utils, KeyValueStore } from "crawlee";
 import { readFile, writeFile } from "fs/promises";
 import { glob } from "glob";
 import { Config, configSchema } from "./config.js";
@@ -61,7 +61,7 @@ export async function crawl(config: Config) {
           const title = await page.title();
           pageCounter++;
           log.info(
-            `Crawling: Page ${pageCounter} / ${config.maxPagesToCrawl} - URL: ${request.loadedUrl}...`,
+            `Crawling: Page ${pageCounter} / ${config.maxPagesToCrawl} - URL: ${request.loadedUrl}`,
           );
 
           // Use custom handling for XPath selector
@@ -155,6 +155,54 @@ export async function crawl(config: Config) {
   }
 }
 
+export async function screenshot(config: Config) {
+  configSchema.parse(config);
+
+  // PlaywrightCrawler crawls the web using a headless
+  // browser controlled by the Playwright library.
+  crawler = new PlaywrightCrawler(
+    {
+      // Use the requestHandler to process each of the crawled pages.
+      async requestHandler({ request, page, log }) {
+        const title = await page.title();
+        pageCounter++;
+        log.info(
+          `Screenshotting: Page ${pageCounter} / ${config.maxPagesToCrawl} - URL: ${request.loadedUrl}`,
+        );
+
+        // Use custom handling for XPath selector
+        if (config.selector) {
+          if (config.selector.startsWith("/")) {
+            await waitForXPath(
+              page,
+              config.selector,
+              config.waitForSelectorTimeout ?? 1000,
+            );
+          } else {
+            await page.waitForSelector(config.selector, {
+              timeout: config.waitForSelectorTimeout ?? 1000,
+            });
+          }
+        }
+
+        const html = await getPageHtml(page, config.selector);
+
+        await page.screenshot({ fullPage: false, quality: 70, type: 'jpeg', path: config.outputFileName });
+      },
+      // Comment this option to scrape the full website.
+      maxRequestsPerCrawl: 1,
+      // Uncomment this option to see the browser window.
+      // headless: false,
+    },
+    new Configuration({
+      purgeOnStart: true,
+    }),
+  );
+
+  // Add first URL to the queue and start the crawl.
+  await crawler.run([config.url]);
+}
+
 export async function write(config: Config) {
   let nextFileNameString: PathLike = "";
   const jsonFiles = await glob("storage/datasets/default/*.json", {
@@ -246,6 +294,10 @@ class GPTCrawlerCore {
 
   async crawl() {
     await crawl(this.config);
+  }
+
+  async screenshot() {
+    await screenshot(this.config);
   }
 
   async write(): Promise<PathLike> {
